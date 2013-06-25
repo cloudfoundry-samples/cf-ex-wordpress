@@ -15,7 +15,7 @@ git clone https://github.com/dmikusa-pivotal/cf-ex-worpress
 cd cf-ex-wordpress
 ```
 
-Not edit ```htdocs/wp-config.php``` and change the [authentication keys](https://github.com/dmikusa-pivotal/cf-ex-worpress/blob/master/htdocs/wp-config.php#L49).  These should be uniqe for every installation.
+Now edit ```htdocs/wp-config.php``` and change the [authentication keys](https://github.com/dmikusa-pivotal/cf-ex-worpress/blob/master/htdocs/wp-config.php#L49).  These should be uniqe for every installation.
 
 ```
 cf push --buildpack=https://github.com/dmikusa-pivotal/cf-php-apache-buildpack.git
