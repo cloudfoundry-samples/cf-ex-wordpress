@@ -3,7 +3,7 @@ CloudFoundry PHP example application:  Wordpress
 
 This is an example application which can be run on Cloudfoundry using the [PHP Buildpack](https://github.com/dmikusa-pivotal/cf-php-apache-buildpack.git).
 
-This is an out-of-the-box implementation of Wordpress 3.5.2.  It's an example of how common PHP applications can easily be run on CloudFoundry.
+This is an out-of-the-box implementation of Wordpress 3.6.1.  It's an example of how common PHP applications can easily be run on CloudFoundry.
 
 Usage
 -----
