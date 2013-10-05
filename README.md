@@ -31,6 +31,32 @@ cf login
 cf push --buildpack=https://github.com/dmikusa-pivotal/cf-php-apache-buildpack.git
 ```
 
+When prompted, create a ClearDb Service.  This is the database that wp-config.php is going to attach to.  This is where Wordpress will store your data.
+
+```bash
+Create services for application?> y
+
+1: cleardb n/a, via cleardb
+2: cloudamqp n/a, via cloudamqp
+3: elephantsql n/a, via elephantsql
+4: loadimpact n/a, via loadimpact
+5: mongolab n/a, via mongolab
+6: newrelic n/a, via newrelic
+7: rediscloud n/a, via garantiadata
+8: sendgrid n/a, via sendgrid
+9: treasuredata n/a, via treasuredata
+10: user-provided , via
+What kind?> 1
+
+Name?> cleardb-48ca8
+
+1: spark: Great for getting started and developing your apps
+Which plan?> 1
+
+Creating service cleardb-48ca8... OK
+Binding cleardb-48ca8 to wordpress-438xc... OK
+```
+
 ## Changes
 
 These changes were made to prepare Wordpress to run on CloudFoundry.
