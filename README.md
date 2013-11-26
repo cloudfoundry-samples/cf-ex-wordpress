@@ -22,7 +22,7 @@ cd cf-ex-wordpress
 
 ```bash
 # Set the target to tell Cloud Foundry which api to use (this will be different if you are not using an account hosted by Cloud Foundry)
-cf target api.pivotal.run.io
+cf target api.run.pivotal.io
 
 # Login
 cf login
