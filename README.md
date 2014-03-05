@@ -87,7 +87,7 @@ Please read the following before using Wordpress in production on CloudFoundry.
 
   You can work around this in some cases, like with media, by using a storage service like Amazon S3 or CloudFront.  However there may be other cases where Wordpress or Wordpress plugins try to write to the disk, so test your installation carefully.
 
-1. This is not an issue with Wordpress specifically, but PHP stores session information to the local disk.  As mentioned previously, the local disk for an application on CloudFoundry so it is possible for you to lose session and session data.  If you need reliable session storage, look at storing session data in an SQL database or with a NoSQL service.
+1. This is not an issue with Wordpress specifically, but PHP stores session information to the local disk.  As mentioned previously, the local disk for an application on CloudFoundry is ephemeral, so it is possible for you to lose session and session data.  If you need reliable session storage, look at storing session data in an SQL database or with a NoSQL service.
 
 
 [PHP Build Pack]:https://github.com/dmikusa-pivotal/cf-php-build-pack
