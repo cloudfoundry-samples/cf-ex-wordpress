@@ -41,7 +41,7 @@ When you push the application here's what happens.
 1. At this point, the build pack is done and CF runs our droplet.
 
 
-## Changes
+### Changes
 
 These changes were made to prepare Wordpress to run on CloudFoundry.
 
@@ -79,8 +79,19 @@ These changes were made to prepare Wordpress to run on CloudFoundry.
  define('DB_CHARSET', 'utf8');
 ```
 
+### Caution
+
+Please read the following before using Wordpress in production on CloudFoundry.
+
+1. Wordpress is designed to write to the local file system.  This does not work well with CloudFoundry, as an application's [local storage on CloudFoundry] is ephemeral.  In other words, Wordpress will write things to the local disk and they will eventually disappear.  
+
+You can work around this in some cases, like with media, by using a storage service like Amazon S3 or CloudFront.  However there may be other cases where Wordpress or Wordpress plugins try to write to the disk, so test your installation carefully.
+
+1. This is not an issue with Wordpress specifically, but PHP stores session information to the local disk.  As mentioned previously, the local disk for an application on CloudFoundry so it is possible for you to lose session and session data.  If you need reliable session storage, look at storing session data in an SQL database or with a NoSQL service.
+
 
 [PHP Build Pack]:https://github.com/dmikusa-pivotal/cf-php-build-pack
 [secret keys]:https://github.com/dmikusa-pivotal/cf-ex-worpress/blob/master/wp-config.php#L49
 [WordPress.org secret-key service]:https://api.wordpress.org/secret-key/1.1/salt
 [ClearDb]:https://www.cleardb.com/
+[local storage on CloudFoundry]:http://docs.cloudfoundry.org/devguide/deploy-apps/prepare-to-deploy.html#filesystem
