@@ -8,10 +8,10 @@ This is an out-of-the-box implementation of Wordpress 3.8.1.  It's an example of
 
 1. Clone the app (i.e. this repo).
 
-```bash
-git clone https://github.com/dmikusa-pivotal/cf-ex-worpress.git cf-ex-wordpress
-cd cf-ex-wordpress
-```
+  ```bash
+  git clone https://github.com/dmikusa-pivotal/cf-ex-worpress.git cf-ex-wordpress
+  cd cf-ex-wordpress
+  ```
 
 1.  If you don't have one already, create a MySQL service.  With Pivotal Web Services, the following command will create a free MySQL database through [ClearDb].
 
