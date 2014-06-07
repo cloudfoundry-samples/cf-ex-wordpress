@@ -16,7 +16,7 @@
 
 // ** Read MySQL service properties from _ENV['VCAP_SERVICES']
 $services = json_decode($_ENV['VCAP_SERVICES'], true);
-$service = $services['cleardb-n/a'][0];  // pick the first MySQL service
+$service = $services['cleardb'][0];  // pick the first MySQL service
 
 // ** MySQL settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
