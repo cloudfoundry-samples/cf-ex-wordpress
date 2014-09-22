@@ -12,20 +12,105 @@ _log = logging.getLogger('wordpress')
 
 
 DEFAULTS = utils.FormattedDict({
-    'WORDPRESS_VERSION': '3.9.2',  # or 'latest'
+    'WORDPRESS_VERSION': '4.0',  # or 'latest'
     'WORDPRESS_PACKAGE': 'wordpress-{WORDPRESS_VERSION}.tar.gz',
-    'WORDPRESS_HASH': '322f3f847a61ef5e8301d4fa9d072521fd92132c',
-    'WORDPRESS_URL': 'https://wordpress.org/{WORDPRESS_PACKAGE}'
+    'WORDPRESS_HASH': '73449bbc015e3d1858f13f56f3289202bd756654',
+    'WORDPRESS_URL': 'https://wordpress.org/{WORDPRESS_PACKAGE}',
+    'WORDPRESS_LOCKED': True,
+    'WORDPRESS_OLD_VERSION': None
 })
+
+
+def merge_defaults(ctx):
+    for key, val in DEFAULTS.iteritems():
+        if key not in ctx:
+            ctx[key] = val
+
+
+def is_sshfs_enabled(ctx):
+    return ('SSH_HOST' in ctx.keys() and
+            'SSH_KEY_NAME' in ctx.keys() and
+            'SSH_PATH' in ctx.keys())
+
+def enable_sshfs(ctx):
+    cmds = []
+    if is_sshfs_enabled(ctx):
+        # look for ssh keys that were pushed with app, move out of public
+        #  directory and set proper permissions (cf push ruins permissions)
+        cmds.append(('mv', '$HOME/%s/.ssh' % ctx['WEBDIR'], '$HOME/'))
+        cmds.append(('chmod', '644', '$HOME/.ssh/*'))
+        cmds.append(('chmod', '600', '$HOME/.ssh/%s' % ctx['SSH_KEY_NAME']))
+        # Copy wp files to shared storage on first install, upgrade or
+        #  if the install is not locked (defaults to locked)
+        if ctx['WORDPRESS_OLD_VERSION'] is None or \
+           ctx['WORDPRESS_VERSION'] != ctx['WORDPRESS_OLD_VERSION'] or \
+           not ctx['WORDPRESS_LOCKED']:
+            # save WP original files
+            cmds.append(('mv', '$HOME/%s/wp-content' % ctx['WEBDIR'], '/tmp/wp-content'))
+            # mount sshfs
+            cmds.append(('mkdir', '-p', '$HOME/%s/wp-content' % ctx['WEBDIR']))
+            cmds.append(('sshfs', "%s:%s" % (ctx['SSH_HOST'], ctx['SSH_PATH']),
+                         '$HOME/%s/wp-content' % ctx['WEBDIR'], '-C',
+                         '-o IdentityFile=$HOME/.ssh/%s' % ctx['SSH_KEY_NAME'],
+                         '-o StrictHostKeyChecking=yes',
+                         '-o UserKnownHostsFile=$HOME/.ssh/known_hosts',
+                         '-o idmap=user'))
+            # copy files
+            cmds.append(('rsync', '-rtvu',
+                         '/tmp/wp-content', '$HOME/%s' % ctx['WEBDIR']))
+            # clean up
+            cmds.append(('rm', '-rf', '/tmp/wp-content'))
+            # we unmount because we want sshfs to be run as a proc
+            #  that way if it fails, it will cause the app to fail
+            cmds.append(('fusermount', '-u', '$HOME/%s/wp-content' % ctx['WEBDIR']))
+    return cmds
+
+
+def write_wp_version(ctx):
+    with open(os.path.join(ctx['BUILD_DIR'], '.wordpress.version'), 'wt') as fp:
+        fp.write(ctx['WORDPRESS_VERSION'])
+
+
+def read_old_wp_version(ctx):
+    wp_version_path = os.path.join(ctx['BUILD_DIR'], '.wordpress.version')
+    if os.path.exists(wp_version_path):
+        with open(wp_version_path, 'rt') as fp:
+            ctx['WORDPRESS_OLD_VERSION'] = fp.read().strip()
+    else:
+        ctx['WORDPRESS_OLD_VERSION'] = None
+
+
+def write_sshfs_warning(ctx):
+    warning_file = os.path.join(ctx['BUILD_DIR'],
+                                ctx['WEBDIR'],
+                                'wp-content',
+                                ' WARNING_DO_NOT_EDIT_THIS_DIRECTORY')
+    with open(warning_file, 'wt') as fp:
+        fp.write("!! WARNING !! DO NOT EDIT FILES IN THIS DIRECTORY!!")
+        fp.write("\n")
+        fp.write("These files are managed by a WordPress instance running "
+                 "on CloudFoundry.  Editing them directly may break things "
+                 " and changes may be overwritten the next time the "
+                 "application is staged on CloudFoundry.")
+        fp.write("\n")
+        fp.write("YOU HAVE BEEN WARNED!!")
 
 
 # Extension Methods
 def preprocess_commands(ctx):
-    return ()
+    return enable_sshfs(ctx)
 
 
 def service_commands(ctx):
-    return {}
+    cmds = {}
+    if is_sshfs_enabled(ctx):
+        cmds['sshfs'] = ('sshfs', "%s:%s" % (ctx['SSH_HOST'], ctx['SSH_PATH']),
+                         '$HOME/%s/wp-content' % ctx['WEBDIR'], '-C', '-f',
+                         '-o IdentityFile=$HOME/.ssh/%s' % ctx['SSH_KEY_NAME'],
+                         '-o StrictHostKeyChecking=yes',
+                         '-o UserKnownHostsFile=$HOME/.ssh/known_hosts',
+                         '-o idmap=user')
+    return cmds
 
 
 def service_environment(ctx):
@@ -33,26 +118,30 @@ def service_environment(ctx):
 
 
 def compile(install):
-    print 'Installing Wordpress %s' % DEFAULTS['WORDPRESS_VERSION']
     ctx = install.builder._ctx
+    merge_defaults(ctx)
+    read_old_wp_version(ctx)
+    print 'Installing Wordpress %s' % ctx['WORDPRESS_VERSION']
     inst = install._installer
     workDir = os.path.join(ctx['TMPDIR'], 'wordpress')
     inst.install_binary_direct(
-        DEFAULTS['WORDPRESS_URL'],
-        DEFAULTS['WORDPRESS_HASH'],
+        ctx['WORDPRESS_URL'],
+        ctx['WORDPRESS_HASH'],
         workDir,
-        fileName=DEFAULTS['WORDPRESS_PACKAGE'],
+        fileName=ctx['WORDPRESS_PACKAGE'],
         strip=True)
     (install.builder
         .move()
         .everything()
-        .under('{BUILD_DIR}/htdocs')
+        .under('{BUILD_DIR}/{WEBDIR}')
         .into(workDir)
         .done())
     (install.builder
         .move()
         .everything()
         .under(workDir)
-        .into('{BUILD_DIR}/htdocs')
+        .into('{BUILD_DIR}/{WEBDIR}')
         .done())
+    write_sshfs_warning(ctx)
+    write_wp_version(ctx)
     return 0
