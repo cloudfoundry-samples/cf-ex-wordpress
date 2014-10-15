@@ -59,6 +59,23 @@ To enable this support in this sample application, simply set the following envi
 |    SSH_KEY_NAME   | The name of your SSH key.  The public and private key need to be bundled with your application under the `.ssh` directory.  These are used to authenticate with the remote SSH server. Required. |
 |      SSH_OPTS     | List of options passed through to `sshfs`.  Defaults to none.  Optional. |
 
+Example:
+
+```
+---
+applications:
+- name: <app-name>
+  memory: 128M
+  path: .
+  buildpack: https://github.com/dmikusa-pivotal/cf-php-build-pack.git
+  services:
+  - mysql-db
+  env:
+    SSH_HOST: user@my-ssh-server.name
+    SSH_PATH: /home/sshfs/remote
+    SSH_KEY_NAME: sshfs
+    SSH_OPTS: '["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"]'
+```
 
 When the above configuration is specified, the example application will take the information and mount the `SSH_PATH` to the `wp-content` directory of your Wordpress application.  This means that anything in Wordpress that would normally be written to the local file system is actually written to the remote path on the `SSH_HOST` specified.
 
