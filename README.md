@@ -42,33 +42,33 @@ When you push the application here's what happens.
 
 ### Persistent Storage
 
-If you've ever used Wordpress before, you're probably familiar with the way that you can install new themes and plugins through the WebUI.  This and other actions like uploading media files work by allowing the Wordpress application itself to modify the files in your installation.  This plus the fact that applications deployed to CF do not have an [ephemeral file system] equals a problem.  
+If you've ever used Wordpress before, you're probably familiar with the way that you can install new themes and plugins through the WebUI.  This and other actions like uploading media files work by allowing the Wordpress application itself to modify files on your local disk.  Unfortunatley, this is going to cause [a problem](#Caution) when you deploy to CloudFoundry.
 
-A naive approach to solving this problem is to simply bundle these files with your application.  That way when you `cf push`, the files will continue to exist.  There are multiple problems with this approach, like large and possibly slow uploads, tracking what's changed by actions in Wordpress and the fact that you probably don't want to push every time you need to upload media.  Given this, it's likely that for any real installation of Wordpress you want a better solution.
+A naive approach to solving this problem is to simply bundle these files, themes, plugins and media, with your application.  That way when you `cf push`, the files will continue to exist.  There are multiple problems with this approach, like large and possibly slow uploads, tracking what's changed by actions in Wordpress and the fact that you probably don't want to push every time you need to upload media.  Given this, it's likely that for any serious installation of Wordpress you want a better solution.
 
-Another partial solution is to use one of the third party plugins for Wordpress which allow you to upload media files to a storage system like Amazon's S3.  While this works great for media files, it doesn't address the issue of installing themes or plugins.  Doing this looks like it would still require you to push all the files up with your application, which can be tricky cause there isn't a good way to manually install a Wordpress plugin.
+Another possible solution is to use one of the third party plugins for Wordpress which allow you to upload media files to a storage system like Amazon's S3.  While this works great for media files, the plugins that I've seen do not address the issue of installing themes or plugins.  Doing this looks like it would still require you to push all the files up with your application, which can be tricky cause there isn't a good way to manually install a Wordpress plugin or theme.
 
-Now that CF has support FUSE enabled (since v183), it's possible for another and more complete solution to this problem.  That is to simply use FUSE to mount a remote file system that Wordpress can use to store your files.  This solution works by mapping the `wp-content` directory to your persistent, remote file system.  Because this is the directory where Wordpress installs themes, plugins and uploads media the normal functionality of Wordpress simply works as you would expect.
+Enter the latest solution.  As of CF release v183, CF now has support for FUSE enabled.  Given this, it's possible to use FUSE to mount a remote file system that Wordpress can use to store your files.  This solution works by mapping the `wp-content` directory to your persistent, remote file system.  Because this is the directory where Wordpress installs themes, plugins and uploads media; the normal functionality of Wordpress simply works as you would expect.
 
 To enable this support in this sample application, simply set the following environment variables in the `manifest.yml` file of this example.
 
 |      Variable     |   Explanation                                        |
 ------------------- | -----------------------------------------------------|
-|      SSH_HOST     | The user, host name or IP address and port of your SSH server. Ex: `user@my.host.name:2222` |
-|      SSH_PATH     | The full remote path of the directory to mount into the application file system. |
-|    SSH_KEY_NAME   | The name of your SSH key.  The public and private key need to be bundled with your application under the `.ssh` directory.  These are used to authenticate with the remote SSH server. |
-|      SSH_OPTS     | List of options passed through to `sshfs`.  Defaults to none. |
+|      SSH_HOST     | The user, host name or IP address and port of your SSH server. Ex: `user@my.host.name:2222`.  Required. |
+|      SSH_PATH     | The full remote path of the directory to mount into the application file system. Required. |
+|    SSH_KEY_NAME   | The name of your SSH key.  The public and private key need to be bundled with your application under the `.ssh` directory.  These are used to authenticate with the remote SSH server. Required. |
+|      SSH_OPTS     | List of options passed through to `sshfs`.  Defaults to none.  Optional. |
 
 
-When the above configuration is specified, the example application will take the information and mount the `SSH_PATH` to the `wp-content` directory of your Wordpress application.  Which means that anything in Wordpress that would normally be written to the local file system is actually written to the remote path on the `SSH_HOST` specified.
+When the above configuration is specified, the example application will take the information and mount the `SSH_PATH` to the `wp-content` directory of your Wordpress application.  This means that anything in Wordpress that would normally be written to the local file system is actually written to the remote path on the `SSH_HOST` specified.
 
-There are some things to be aware of with this solution.
+As with the other solutions, this one is not perfect either.  Here are some things to be aware of with this solution.
 
    - Because files are being stored on a remote server, performance will be impacted by the bandwidth and latency to that server.  In other words, you want the SSH server to be located as closely as possible (ideally on the same LAN) to your CF installation.
 
-   - Wordpress places some of its PHP files within the `wp-content` directory.  These will be stored to your remote file system as well.  If you change the version of Wordpress that you have installed, these files will need to change as well.  This sample application does it's best to update these files when it detects that the Wordpress version has changed or when you set the `WORDPRESS_LOCKED` environment variable to `False`.  When this happens, the PHP files in the `wp-content` directory will be overwritten.
+   - Wordpress places some of its PHP files within the `wp-content` directory.  These will be stored to your remote file system as well.  When you push your application, these files (not themes, plugins or media) will be overwritten by the build pack.  The sample application does this to make sure the files are up-to-date in the event that you have changed the version of Wordpress.  
 
-   - If you're familiar with FUSE you'll know that it supports many different types of remote file systems, like Webdav, SSHFS and many others.  In this example application, I've chosen SSHFS because it's pre-installed in the CF environment, easy to setup client side and easy to setup server side.  You could certainly choose to use a different FUSE module, if you prefer another one.
+   - If you're familiar with FUSE you'll know that it supports many different types of remote file systems, like Webdav, SSHFS and many others.  In this example application, I've chosen SSHFS because it performs well, is secure and comes pre-installed in the CF environment. You could certainly choose to use a different FUSE module, if you prefer another one.
 
 ### Changes
 
