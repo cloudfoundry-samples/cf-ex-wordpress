@@ -42,7 +42,7 @@ When you push the application here's what happens.
 
 ### Persistent Storage
 
-If you've ever used Wordpress before, you're probably familiar with the way that you can install new themes and plugins through the WebUI.  This and other actions like uploading media files work by allowing the Wordpress application itself to modify files on your local disk.  Unfortunatley, this is going to cause [a problem](#Caution) when you deploy to CloudFoundry.
+If you've ever used Wordpress before, you're probably familiar with the way that you can install new themes and plugins through the WebUI.  This and other actions like uploading media files work by allowing the Wordpress application itself to modify files on your local disk.  Unfortunatley, this is going to cause [a problem](#caution) when you deploy to CloudFoundry.
 
 A naive approach to solving this problem is to simply bundle these files, themes, plugins and media, with your application.  That way when you `cf push`, the files will continue to exist.  There are multiple problems with this approach, like large and possibly slow uploads, tracking what's changed by actions in Wordpress and the fact that you probably don't want to push every time you need to upload media.  Given this, it's likely that for any serious installation of Wordpress you want a better solution.
 
@@ -112,7 +112,7 @@ These changes were made to prepare Wordpress to run on CloudFoundry.
 
 Please read the following before using Wordpress in production on CloudFoundry.
 
-1. Wordpress is designed to write to the local file system.  This does not work well with CloudFoundry, as an application's [local storage on CloudFoundry] is ephemeral.  In other words, Wordpress will write things to the local disk and they will eventually disappear.  See the [Persistent Storage](#PersistentStorage) above for ways to work around this.
+1. Wordpress is designed to write to the local file system.  This does not work well with CloudFoundry, as an application's [local storage on CloudFoundry] is ephemeral.  In other words, Wordpress will write things to the local disk and they will eventually disappear.  See the [Persistent Storage](#persistent-storage) above for ways to work around this.
 
 1. This is not an issue with Wordpress specifically, but PHP stores session information to the local disk.  As mentioned previously, the local disk for an application on CloudFoundry is ephemeral, so it is possible for you to lose session and session data.  If you need reliable session storage, look at storing session data in an SQL database or with a NoSQL service.
 
