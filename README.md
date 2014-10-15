@@ -57,6 +57,7 @@ To enable this support in this sample application, simply set the following envi
 |      SSH_HOST     | The user, host name or IP address and port of your SSH server. Ex: `user@my.host.name:2222` |
 |      SSH_PATH     | The full remote path of the directory to mount into the application file system. |
 |    SSH_KEY_NAME   | The name of your SSH key.  The public and private key need to be bundled with your application under the `.ssh` directory.  These are used to authenticate with the remote SSH server. |
+|      SSH_OPTS     | List of options passed through to `sshfs`.  Defaults to none. |
 
 
 When the above configuration is specified, the example application will take the information and mount the `SSH_PATH` to the `wp-content` directory of your Wordpress application.  Which means that anything in Wordpress that would normally be written to the local file system is actually written to the remote path on the `SSH_HOST` specified.
