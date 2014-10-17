@@ -4,10 +4,11 @@ applications:
   memory: 128M 
   path: .
   buildpack: https://github.com/dmikusa-pivotal/cf-php-build-pack.git
+  random-route: true
   services:
   - mysql-db
   env:
     SSH_HOST: user@your-ssh-server
     SSH_PATH: /path/on/ssh/server
-    SSH_KEY_NAME: sshfs
+    SSH_KEY_NAME: sshfs_rsa
     SSH_OPTS: '["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"]'
