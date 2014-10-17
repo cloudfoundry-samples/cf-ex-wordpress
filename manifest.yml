@@ -6,3 +6,8 @@ applications:
   buildpack: https://github.com/dmikusa-pivotal/cf-php-build-pack.git
   services:
   - mysql-db
+  env:
+    SSH_HOST: user@your-ssh-server
+    SSH_PATH: /path/on/ssh/server
+    SSH_KEY_NAME: sshfs
+    SSH_OPTS: '["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"]'
