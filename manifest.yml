@@ -11,4 +11,4 @@ applications:
     SSH_HOST: user@your-ssh-server
     SSH_PATH: /full/or/relative/path/on/ssh/server
     SSH_KEY_NAME: sshfs_rsa
-    SSH_OPTS: '["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"]'
+    SSH_OPTS: '["cache=yes", "kernel_cache", "compression=no", "large_read"]'
