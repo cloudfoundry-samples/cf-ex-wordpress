@@ -4,7 +4,7 @@ applications:
   memory: 128M 
   path: .
   buildpack: https://github.com/dmikusa-pivotal/cf-php-build-pack.git
-  random-route: true
+  host: wordpress-on
   services:
   - mysql-db
   env:
