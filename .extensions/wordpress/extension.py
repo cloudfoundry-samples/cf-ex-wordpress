@@ -13,9 +13,9 @@ _log = logging.getLogger('wordpress')
 
 
 DEFAULTS = utils.FormattedDict({
-    'WORDPRESS_VERSION': '4.0',  # or 'latest'
+    'WORDPRESS_VERSION': '4.1.1',  # or 'latest'
     'WORDPRESS_PACKAGE': 'wordpress-{WORDPRESS_VERSION}.tar.gz',
-    'WORDPRESS_HASH': '73449bbc015e3d1858f13f56f3289202bd756654',
+    'WORDPRESS_HASH': '258bda90f618d7af3a2db7f22fc926d1fedb06f4',
     'WORDPRESS_URL': 'https://wordpress.org/{WORDPRESS_PACKAGE}',
 })
 
