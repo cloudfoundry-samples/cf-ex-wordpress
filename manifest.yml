@@ -3,7 +3,7 @@ applications:
 - name: mywordpress
   memory: 128M 
   path: .
-  buildpack: https://github.com/cloudfoundry/php-buildpack#8c13f5434b2f31ca960d2bca9153df1978258535
+  buildpack: https://github.com/cloudfoundry/php-buildpack
   host: wordpress-on
   services:
   - mysql-db
