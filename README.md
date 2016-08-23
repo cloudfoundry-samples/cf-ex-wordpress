@@ -9,7 +9,7 @@ This is an out-of-the-box implementation of Wordpress 4.0.  It's an example of h
 1. Clone the app (i.e. this repo).
 
   ```bash
-  git clone https://github.com/dmikusa-pivotal/cf-ex-worpress.git cf-ex-wordpress
+  git clone https://github.com/dmikusa-pivotal/cf-ex-wordpress.git cf-ex-wordpress
   cd cf-ex-wordpress
   ```
 
