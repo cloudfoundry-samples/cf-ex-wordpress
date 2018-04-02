@@ -2,43 +2,129 @@
 
 This is an example application which can be run on CloudFoundry using the [PHP Build Pack].
 
-This is an out-of-the-box implementation of Wordpress 4.0.  It's an example of how common PHP applications can easily be run on CloudFoundry.
+This is an out-of-the-box implementation of Wordpress.  It's an example of how common PHP applications can easily be run on CloudFoundry.
 
-### Usage
+### Usage w/Volume Services
 
-1. Clone the app (i.e. this repo).
+1. Download latest Wordpress files: `curl -L -o wordpress-latest.zip https://wordpress.org/latest.zip`
+2. Extract them: `unzip wordpress-latest.zip && rm wordpress-latest.zip`
+3. Create `manifest.yml` with the contents:
 
-  ```bash
-  git clone https://github.com/dmikusa-pivotal/cf-ex-worpress.git cf-ex-wordpress
-  cd cf-ex-wordpress
-  ```
+   ```
+   ---
+   applications:
+   - name: wordpress
+     memory: 128M
+     path: .
+     route: wordpress-on.<app-domain>
+     buildpack: php_buildpack
+     services:
+     - wordpress-mysql-db
+   ```
 
-1.  If you don't have one already, create a MySQL service.  With Pivotal Web Services, the following command will create a free MySQL database through [ClearDb].
+4. Create your MySQL DB.  You can use any MySQL DB that you like, just make sure that the service name matches the service name in `manifest.yml` from step #2.  
 
-  ```bash
-  cf create-service cleardb spark my-test-mysql-db
-  ```
+   Example using Pivotal MySQL v1: `cf create-service p-mysql 100mb wordpress-mysql-db`.
 
-1. Edit the manifest.yml file.  Change the 'host' attribute to something unique.  Then under "services:" change "mysql-db" to the name of your MySQL service.  This is the name of the service that will be bound to your application and thus used by Wordpress.
+5. Create your persistent store.  This can be any volume services implementation.
 
-1. Like every normal Wordpress install, edit `htdocs/wp-config.php` and change the [secret keys].  These should be uniqe for every installation.  You can generate these using the [WordPress.org secret-key service].
+   Example using NFS:  `cf create-service nfs Existing wordpress-files -c '{"share": "<nfs-server>/path/to/nfs/files"}'``
+   
+   The files stored under `wp-content` (themes, plugins, media, etc..) will be created under this mount.
 
-1. Push it to CloudFoundry.
+6. Run `mv wordpress/wp-config-sample.php wordpress/wp-config.php`.
+7. Now edit `wordpress/wp-config.php`, replace the database config lines with the following:
 
-  ```bash
-  cf push
-  ```
+    ```
+    // ** Read MySQL service properties from _ENV['VCAP_SERVICES']
+    $services = json_decode($_ENV['VCAP_SERVICES'], true);
+    $service = $services['p-mysql'][0];  // pick the first MySQL service
 
-  Access your application URL in the browser.  You'll see the familiar Wordpress install screen.  Setup your password and your all set.
+    // ** MySQL settings - You can get this info from your web host ** //
+    /** The name of the database for WordPress */
+    define('DB_NAME', $service['credentials']['name']);
 
-### How It Works
+    /** MySQL database username */
+    define('DB_USER', $service['credentials']['username']);
 
-When you push the application here's what happens.
+    /** MySQL database password */
+    define('DB_PASSWORD', $service['credentials']['password']);
 
-1. The local bits are pushed to your target.  This is small, five files around 25k. It includes the changes we made and a build pack extension for Wordpress.
-1. The server downloads the [PHP Build Pack] and runs it.  This installs HTTPD and PHP.
-1. The build pack sees the extension that we pushed and runs it.  The extension downloads the stock Wordpress file from their server, unzips it and installs it into the `htdocs` directory.  It then copies the rest of the files that we pushed and replaces the default Wordpress files with them.  In this case, it's just the `wp-config.php` file.
-1. At this point, the build pack is done and CF runs our droplet.
+    /** MySQL hostname */
+    define('DB_HOST', $service['credentials']['hostname'] . ':' . $service['credentials']['port']);
+
+    /** Database Charset to use in creating database tables. */
+    define('DB_CHARSET', 'utf8');
+
+    /** The Database Collate type. Don't change this if in doubt. */
+    define('DB_COLLATE', '');
+    ```
+
+    Make sure that the key used to look up the service (i.e. `p-mysql` above) matches the key used by your MySQL service provider.  You can see this if you run `cf env <app>` with a bound MySQL instance.
+
+8. Configure the remainder of `wp-config.php` as you normally would for a new Wordpress site.
+9. Add extensions files `.bp-config/php/php.ini.d/wp-extensions.ini`
+
+    ```
+    extension=mbstring.so
+    extension=mysqli.so
+    extension=gd.so
+    extension=zip.so
+    extension=openssl.so
+    extension=sockets.so
+    ```
+
+10. Create the file `.bp-config/options.json` and edit it.  Add the following:
+
+    ```
+    {
+        "WEBDIR": "wordpress",
+        "PHP_VERSION": "{PHP_71_LATEST}"
+    }
+    ```
+
+You can use `PHP_70_LATEST` for the latest PHP 7.0 version or `PHP_72_LATEST` for the latest PHP 7.2 version.
+
+11. Run `mv wordpress/wp-content wordpress/wp-content-orig` (name of new folder *must* be exactly as show here).  We save the original contents to seed our persistent storage.  If the persistent storage has files, then the originals are simply removed (see `.profile` script).
+12. Create the file `.profile` and add the following:
+
+    ```
+    #!/bin/bash
+
+    # set path of where NFS partition is mounted
+    MOUNT_FOLDER="/home/vcap/app/files"
+
+    # set name of folder in which to store files on the NFS partition
+    WPCONTENT_FOLDER="$(echo $VCAP_APPLICATION | jq -r .application_name)"
+
+    # Does the WPCONTENT_FOLDER exist under MOUNT_FOLDER?  If not seed it.
+    TARGET="$MOUNT_FOLDER/$WPCONTENT_FOLDER"
+    if [ ! -d "$TARGET" ]; then
+        echo "First run, moving default Wordpress files to the remote volume"
+        mv "/home/vcap/app/wordpress/wp-content-orig" "$TARGET"
+        ln -s "$TARGET" "/home/vcap/app/wordpress/wp-content"
+
+        # Write warning to remote folder
+        echo "!! WARNING !! DO NOT EDIT FILES IN THIS DIRECTORY!!" > \
+            "$TARGET/WARNING_DO_NOT_EDIT_THIS_DIRECTORY"
+    else
+        ln -s "$TARGET" "/home/vcap/app/wordpress/wp-content"
+        rm -rf "/home/vcap/app/wordpress/wp-content-orig"  # we don't need this
+    fi
+    ```
+
+    You can edit `MOUNT_FOLDER` and `WPCONTENT_FOLDER`, but you don't need to as long as you follow the rest of the instructions.  If you need/want to edit, `MOUNT_FOLDER` must match the `mount` location in step #14.  The `WPCONTENT_FOLDER` can be named anything, and will default to your application name.
+
+13. Run `cf push --no-start`.  The `--no-start` option is critical as we need to bind our volume service before we actually start the app (see step #14).
+14. Bind your volume services instance to the app.
+
+    Example using NFS:  `cf bind-service wordpress wordpress-files -c '{"uid": "1001", "gid": "1001", "mount": "/home/vcap/app/files"}'`
+    
+    We cannot do this in `manifest.yml` as we need to specify custom properties for NFS.  Note that `mount` must match the value of `MOUNT_FOLDER` from step #12 and your `.profile` file.  
+    
+    In the case of NFS, don't forget to adjust the `uid` and `gid` so they match the uid/gid on your user on the NFS server.  You'll get permissions errors if they don't match.
+15. Run `cf start wordpress`.
+16. Open your URL in the browser and configure Wordpress as you normally would.
 
 ### Persistent Storage
 
@@ -46,84 +132,9 @@ If you've ever used Wordpress before, you're probably familiar with the way that
 
 A naive approach to solving this problem is to simply bundle these files, themes, plugins and media, with your application.  That way when you `cf push`, the files will continue to exist.  There are multiple problems with this approach, like large and possibly slow uploads, tracking what's changed by actions in Wordpress and the fact that you probably don't want to push every time you need to upload media.  Given this, it's likely that for any serious installation of Wordpress you want a better solution.
 
-One possible better solution is to use one of the third party plugins for Wordpress which allow you to upload media files to a storage system like Amazon's S3.  While this works great for media files, the plugins that I've seen do not address the issue of installing themes or plugins.  Doing this looks like it would still require you to push all the files up with your application, which can be tricky cause there isn't a good way to manually install a Wordpress plugin or theme.
+One good solution is to use one of the third party plugins for Wordpress which allow you to upload media files to a storage system like Amazon's S3.  Your media is then safely stored outside of your application.  The final bit for using this solution is to install your themes & plugins locally, using a tool like [wp-cli](https://wp-cli.org/) or a local staging server, then push the themes and plugins up with your application.  This can still be a bit slow if you have lots of plugins, but it's better than the naive approach as media is not being uploaded.
 
-Enter the latest solution.  As of CF release v183, CF now has support for FUSE enabled.  Given this, it's possible to use FUSE to mount a remote file system that Wordpress can use to store your files.  This solution works by mapping the `wp-content` directory to your persistent, remote file system.  Because this is the directory where Wordpress installs themes, plugins and uploads media; the normal functionality of Wordpress simply works as you would expect.
-
-To enable this support in this sample application, simply set the following environment variables in the `manifest.yml` file of this example.
-
-|      Variable     |   Explanation                                        |
-------------------- | -----------------------------------------------------|
-|      SSH_HOST     | The user, host name or IP address and port of your SSH server. Ex: `user@my.host.name:2222`.  Required. |
-|      SSH_PATH     | The full remote path of the directory to mount into the application file system. Required. |
-|    SSH_KEY_NAME   | The name of your SSH key.  The public and private key need to be bundled with your application under the `.ssh` directory.  These are used to authenticate with the remote SSH server. Required. |
-|      SSH_OPTS     | List of options passed through to `sshfs`.  Defaults to none.  Optional. |
-
-Example:
-
-```
----
-applications:
-- name: <app-name>
-  memory: 128M
-  path: .
-  buildpack: https://github.com/dmikusa-pivotal/cf-php-build-pack.git
-  services:
-  - mysql-db
-  env:
-    SSH_HOST: user@my-ssh-server.name
-    SSH_PATH: /home/sshfs/remote
-    SSH_KEY_NAME: sshfs
-    SSH_OPTS: '["cache=yes", "kernel_cache", "compression=no", "large_read", "Ciphers=arcfour"]'
-```
-
-When the above configuration is specified, the example application will take the information and mount the `SSH_PATH` to the `wp-content` directory of your Wordpress application.  This means that anything in Wordpress that would normally be written to the local file system is actually written to the remote path on the `SSH_HOST` specified.
-
-As with the other solutions, this one is not perfect either.  Here are some things to be aware of with this solution.
-
-   - Because files are being stored on a remote server, performance will be impacted by the bandwidth and latency to that server.  In other words, you want the SSH server to be located as closely as possible (ideally on the same LAN) to your CF installation.
-
-   - Wordpress places some of its PHP files within the `wp-content` directory.  These will be stored to your remote file system as well.  When you push your application, these files (not themes, plugins or media) will be overwritten by the build pack.  The sample application does this to make sure the files are up-to-date in the event that you have changed the version of Wordpress.  
-
-   - If you're familiar with FUSE you'll know that it supports many different types of remote file systems, like Webdav, SSHFS and many others.  In this example application, I've chosen SSHFS because it performs well, is secure and comes pre-installed in the CF environment. You could certainly choose to use a different FUSE module, if you prefer another one.
-
-### Changes
-
-These changes were made to prepare Wordpress to run on CloudFoundry.
-
-1. Edit `wp-config.php`, configure to use CloudFoundry database.
-
-```diff
---- wp-config-sample.php	2013-10-24 18:58:23.000000000 -0400
-+++ wp-config.php	2014-03-05 15:44:23.000000000 -0500
-@@ -14,18 +14,22 @@
-  * @package WordPress
-  */
-
-+// ** Read MySQL service properties from _ENV['VCAP_SERVICES']
-+$services = json_decode($_ENV['VCAP_SERVICES'], true);
-+$service = $services['cleardb'][0];  // pick the first MySQL service
-+
- // ** MySQL settings - You can get this info from your web host ** //
- /** The name of the database for WordPress */
--define('DB_NAME', 'database_name_here');
-+define('DB_NAME', $service['credentials']['name']);
-
- /** MySQL database username */
--define('DB_USER', 'username_here');
-+define('DB_USER', $service['credentials']['username']);
-
- /** MySQL database password */
--define('DB_PASSWORD', 'password_here');
-+define('DB_PASSWORD', $service['credentials']['password']);
-
- /** MySQL hostname */
--define('DB_HOST', 'localhost');
-+define('DB_HOST', $service['credentials']['hostname'] . ':' . $service['credentials']['port']);
-
- /** Database Charset to use in creating database tables. */
- define('DB_CHARSET', 'utf8');
-```
+The solution that's documented in this guide is to use Volume Services.  This is a mechanism in CF which allows you to attach a persistent volume to your application.  The instructions above walk you would mounting the persistent volume in place of your `wp-content` folder, which puts media, themes and plugins all onto the persistent disk.  This is a convenient solution because you can use Wordpress to manage media, themes and plugins and files will all be safe.
 
 ### Caution
 
